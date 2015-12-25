@@ -1,0 +1,207 @@
+---
+title: "Motor Trend Analysis"
+output: pdf_document
+---
+
+#Executive Summary
+
+This report is prepared for Motor Trend magazine and it focus on answering through several perspectives whether an automatic or manual transmission is better for the miles per gallon (MPG) results and how much difference are in terms of MPG between both types of transmissions. The dataset of analysis is called **mtcars**.  This study has the main limitation in the number of records.  
+
+Several approaches are chosen to perform the analysis since there are multiples variables. The best model correspond to the model calculated with the Stepwise Forward Selection. 
+
+The conclusion is that manual transmission is better than automatic transmission. The range of difference depends on the other variables considered, but for the tested models the range is between 1.81 - 7.25. The best model considered the variables: Transmission (am), Number of cylinders (cyl), Weight (wt) and Gross horsepower (hp). 
+
+#Analysis 
+
+## Objective and Data Source
+
+The main objective of the current analysis is to respond whether an automatic or manual transmission is better in terms of MPG and quantify the difference among them. The [mtcars](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/mtcars.html) published by 1974 Motor Trend US magazine is used to perform the analysis. The dataset contains 11 different variables. MPG corresponds to the outcome for this analysis, then there are 5 continuous variables (disp, hp, drat, wt, qsec) and 5 factor or discrete variables (cyl, vs, am, gear, carb).R code is not presented, due to extention restriction, nonetheless it is available in this [github](https://github.com/MariPlaza/Regression_Models)
+
+```{r, echo=FALSE, warning=FALSE}
+#Check if the required packaged are installed and upload them. 
+    list.of.packages <- c("ggplot2", "GGally", "caret", "lattice","gridExtra","MASS", "corrplot")
+    new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+    if(length(new.packages)) install.packages(new.packages)
+    library(lattice)
+    library(ggplot2)
+    library(GGally)
+    library(caret)
+    library(gridExtra)
+    library(MASS)
+    library(corrplot)
+#Read and Transform Data. 
+    set.seed(1234)
+    data(mtcars)
+    Corr_Matrix <- cor(mtcars)
+    mtcars$cyl <- as.factor(mtcars$cyl)
+    mtcars$vs <- as.factor(mtcars$vs)
+    mtcars$am <- as.factor(mtcars$am)
+    levels(mtcars$am) <- c("Automatic", "Manual")
+    mtcars$gear <- as.factor(mtcars$gear)
+    mtcars$carb <- as.factor(mtcars$carb)
+```
+
+## Simple Linear Regression
+
+### Exploratory Data
+Reviewing graph 1 in Appendix, specifically the am vs mpg, it is highly noted that Manual transmission tends to have better mpg than Automatic transmissions. The numerical value is explored through a simple linear model between (mpg) and transmission (am) 
+
+### Regression Results
+```{r, echo=FALSE}
+    Summary_Data <- matrix(, nrow = 4, ncol = 2)
+    
+    Linear_Regression <- lm(mpg ~ am,data=mtcars)
+    Summary_Name <- paste("Simple Linear Regression", summary(Linear_Regression)$call[2], sep = " - ")
+    Summary_Data[1,1]<- coef(summary(Linear_Regression))["amManual","Estimate"]
+    Summary_Data[1,2]<-summary(Linear_Regression)$adj.r.squared*100             
+```    
+
+From the results, it is easy to respond that a manual transmission is better for MPG and than the difference is 7.245 mpg. In addition, the model provides a R^2 value of 0.3598. This means that simple linear regression model only explains 35.98% of the variance.
+
+## Multiple Regression
+
+In multiple regressions several variables are choosen as estimators of the outcome. For this analysis, three models are going to be tested: 1. With all possible variables,  2. With the highly correlated variables with mpg and finally 3. With the model founded through MASS library to perform a [Stepwise Foward Selection of Variables](http://stat.ethz.ch/~meier/teaching/cheming/5_regression_large.pdf)
+
+### Exploratory Data
+
+In graph 1 in Appendix is represented the relationship between each variable directly with mpg. 
+
+In graph 2 in Appendix is represented the correlation between each variable. Based on this analysis is suggested to take the following variables for the second multiple regression analysis: cyl, disp, hp, wt and since am is our variable of study it would be included although the correlation is less than 0.7. However, there is a high correlation between cyl and disp and considering that  predictors should not exhibit collinearity, these two variables would not be included in the model.
+
+
+### Regression Results
+
+```{r, echo=FALSE}
+    Multiple_Regression_All <- lm(mpg ~ .,data=mtcars)
+    Summary_Name <- c(Summary_Name, paste("All Regresors", summary(Multiple_Regression_All)$call[2], sep = " - "))
+    Summary_Data[2,1]<- coef(summary(Multiple_Regression_All))["amManual","Estimate"]
+    Summary_Data[2,2]<- summary(Multiple_Regression_All)$adj.r.squared*100
+
+    
+    Multiple_Regression_Selected <- lm(mpg ~ am + wt + hp,data=mtcars)
+    Summary_Name <- c(Summary_Name, paste("High Corr Regresors", summary(Multiple_Regression_Selected)$call[2], sep = " - "))
+    Summary_Data[3,1]<- coef(summary(Multiple_Regression_Selected))["amManual","Estimate"]
+    Summary_Data[3,2]<- summary(Multiple_Regression_Selected)$adj.r.squared*100
+
+    Multiple_Regression_MASS <- stepAIC(lm(mpg ~ . ,data=mtcars), direction = 'both', trace = FALSE)
+    Summary_Name <- c(Summary_Name, paste("SFSV", summary(Multiple_Regression_MASS)$call[2], sep = " - "))
+    Summary_Data[4,1]<- coef(summary(Multiple_Regression_MASS))["amManual","Estimate"]
+    Summary_Data[4,2]<- summary(Multiple_Regression_MASS)$adj.r.squared*100
+```    
+
+```{r, echo=FALSE}
+    colnames(Summary_Data) <- c("Difference**","Adj R-2")
+    rownames(Summary_Data) <- Summary_Name
+    Summary_Data
+```        
+
+**Represents the amManual Coefficient in each model, expressed in Miles per Gallon assuming the rest of the variables of the model constant. 
+
+## Error Analysis
+
+As it is showed in graph 3, all errors from the different models are symmetrically distributed around the middle of the plot suggesting that the linear relationship is reasonable, nonetheless the simple linear regression shows more amplitude in y-axis due to the inaccuracy of the model that just considers one factor variable. There is not outliers since there is not "stands out" points outside of the normal pattern of each model. Generally speaking, the multiple regression models have not clear pattern and its residuals are clustered around smaller digits of y, although the best tendency is shown by the last model. 
+
+Reviewing the Q-Q plots, it is easy to observe that all the models tends to follow the line,  which implies that the errors follow a normal distribution and this behaviour is desirable. 
+
+The model that follows better the line in the Q-Q Plot is the simple regression model, nonetheless when the residuals vs fitted values graph is reviewed, it is easy to note that the variance is greater due to the unaccuracy of this model. Although none of the models represent a perfect match, most of the time a decent model is better than none at all. 
+
+Considering the R square adjusted and the error analysis, it is concluded that the best fit model from these is the  [Stepwise Foward Selection of Variables](http://stat.ethz.ch/~meier/teaching/cheming/5_regression_large.pdf)
+
+#Conclusions
+
+1. Manual transmission is better than automatic transmission in terms of mpg. 
+2. The best model is the Stepwise Foward Selection of Variable based on R Squared Adjusted. 
+3. The better model with 84.01% R2 corresponds to  mpg = 33.70832 -3.03134 cyl6 - 2.16368 cyl8 - 0.03211 hp -2.49683 wt + 1.80921 am. Maintaining the rest of variables constant the manual transmission is better than automatic transmission by  1.80921 miles per gallon.
+
+
+#Apendix
+
+```{r, echo=FALSE}
+    #Exploratory Analysis of Variables
+    #Continuos Variables
+   
+    Title_Graph<-"Graph 1: Variables of mtcars vs Miles per Gallon (mpg)"
+    Title_Graph
+    #Displacement (cu.in.)
+            plot_disp <- ggplot(data=mtcars,aes(y= mpg, x = disp))   + geom_line(fill="darkblue", stat="identity")
+            plot_disp <- plot_disp + labs(x="disp",y="Miles per Gallon (mpg)") 
+            plot_disp <- plot_disp + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #Gross horsepower
+            plot_hp <- ggplot(data=mtcars,aes(y= mpg, x = hp))   + geom_line(fill="darkblue", stat="identity")
+            plot_hp <- plot_hp + labs(x="hp", y="") 
+            plot_hp <- plot_hp + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #Rear axle ratio
+            plot_drat <- ggplot(data=mtcars,aes(y= mpg, x = drat))   + geom_line(fill="darkblue", stat="identity")
+            plot_drat <- plot_drat + labs(x="drat", y="") 
+            plot_drat <- plot_drat + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #Weight (lb/1000)
+            plot_wt <- ggplot(data=mtcars,aes(y= mpg, x = wt))   + geom_line(fill="darkblue", stat="identity")
+            plot_wt <- plot_wt + labs(x="wt", y="") 
+            plot_wt <- plot_wt + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #1/4 mile time
+            plot_qsec <- ggplot(data=mtcars,aes(y= mpg, x = qsec))   + geom_line(fill="darkblue", stat="identity")
+            plot_qsec <- plot_qsec + labs(x="qsec", y="") 
+            plot_qsec <- plot_qsec + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+    #Factor Variables
+        #Number of cylinders
+            plot_cyl <- ggplot(data=mtcars,aes(y= mpg, x = cyl), fill = cyl)
+            plot_cyl <- plot_cyl + geom_violin(colour = "darkblue", size=2)
+            plot_cyl <- plot_cyl + labs(x="cyl",y="Miles per Gallon (mpg)") + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #V/S
+            plot_vs <- ggplot(data=mtcars,aes(y= mpg, x = vs), fill = vs)
+            plot_vs <- plot_vs + geom_violin(colour = "darkblue", size=2)
+            plot_vs <- plot_vs + xlab("V/S") + ylab("") + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #Transmission
+            plot_am <- ggplot(data=mtcars,aes(y= mpg, x = am), fill = am)
+            plot_am <- plot_am + geom_violin(colour = "darkblue", size=2)
+            plot_am <- plot_am + xlab("am") + ylab("") + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #Number of forward gears
+            plot_gear <- ggplot(data=mtcars,aes(y= mpg, x = gear), fill = gear)
+            plot_gear <- plot_gear + geom_violin(colour = "darkblue", size=2)
+            plot_gear <- plot_gear + xlab("gear")+ ylab("") + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        #Number of carburetors
+            plot_carb <- ggplot(data=mtcars,aes(y= mpg, x = carb), fill = carb)
+            plot_carb <- plot_carb + geom_violin(colour = "darkblue", size=2)
+            plot_carb <- plot_carb + xlab("carb")+ ylab("") + theme(panel.grid.major = element_line(colour = "white")) + theme_bw()
+        grid.arrange(plot_disp, plot_hp, plot_drat, plot_wt, plot_qsec, plot_cyl, plot_vs, plot_am, plot_gear, plot_carb, ncol=5, nrow=2)
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+    cex.before <- par("cex")
+    par(cex = 0.7, oma=c(0,0,2,0))
+    corrplot.mixed(Corr_Matrix, title = "Graph 2: Correlation among variables", tl.cex=1/par("cex"),upper = "circle", lower = "number",cl.cex=1/par("cex"))
+    par(cex = cex.before)
+```
+
+```{r, echo=FALSE}
+    
+    par(oma=c(5,4,3,1), mfrow = c(2, 4), mar = c(0,0,1,1)+2)
+    
+    plot(Linear_Regression$fitted.values,Linear_Regression$residuals, main ="mpg~am")
+    plot(Multiple_Regression_All$fitted.values,Multiple_Regression_All$residuals, main ="mpg~.")
+    plot(Multiple_Regression_Selected$fitted.values,Multiple_Regression_Selected$residuals, main ="mpg~hp+am+wt")
+    plot(Multiple_Regression_MASS$fitted.values,Multiple_Regression_MASS$residuals, main ="mpg~hp+cyl+am+wt")
+    
+    
+    LR_Standard <- rstandard(Linear_Regression)
+    qqnorm(LR_Standard, main ="mpg~am")
+    qqline(LR_Standard)
+    
+    
+    MRA_Standard <- rstandard(Multiple_Regression_All)
+    qqnorm(MRA_Standard, main ="mpg~.")
+    qqline(MRA_Standard)
+    
+    
+    MRS_Standard <- rstandard(Multiple_Regression_Selected)
+    qqnorm(MRS_Standard, main ="mpg~hp+am+wt")
+    qqline(MRS_Standard)
+    
+    MRM_Standard <- rstandard(Multiple_Regression_MASS)
+    qqnorm(MRM_Standard, main ="mpg~hp+cyl+am+wt")
+    qqline(MRM_Standard)
+    
+    mtext("Graph 3: Fitted Values vs. Residuals and Normal Q-Q", outer=TRUE) 
+```
+
